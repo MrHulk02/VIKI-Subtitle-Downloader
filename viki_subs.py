@@ -53,7 +53,7 @@ class VIKI:
         else:
             print(f"[+] Available Episodes: {total_episodes}")
 
-            data = []
+            titles = []
             i = 1
             while i < math.ceil(total_episodes / 50) + 1:
                 vid = requests.get(
@@ -76,13 +76,13 @@ class VIKI:
                     if not self.in_range(episode["number"]):
                         continue
 
-                    data.append({
+                    titles.append({
                         '_id': episode['id'],
                         'title': title,
                         'episode': episode["number"],
                         'subtitle': [lang for lang, percent in episode['subtitle_completions'].items() if percent > 90]
                     })
-            return data
+            return titles
     
     def get_subtitle(self):
         data = self.get_titles()
