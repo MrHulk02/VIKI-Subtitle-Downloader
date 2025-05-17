@@ -23,7 +23,7 @@ class VIKI:
             raise ValueError("[-] not valid viki id from url.")
         self.id = match.group(1)
         self.episode = episode
-        self.language = language
+        self.language = language.lower()
         self._type = None
         self.app = "100000a"
     
@@ -89,7 +89,7 @@ class VIKI:
         
         for sub in data:
             if self._type == "series":
-                title = f"{sub['title']}.S01E{sub['episode']}".replace(' ', '.')
+                title = f"{sub['title']}.S01E{sub['episode']:02d}".replace(' ', '.')
             else:
                 title = f"{sub['title']}".replace(' ', '.')
 
