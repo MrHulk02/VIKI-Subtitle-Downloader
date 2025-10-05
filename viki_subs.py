@@ -18,10 +18,10 @@ HEADERS = {
 
 class VIKI:
     def __init__(self, url: str, episode: str, language: str):
-        match = re.search(r"([0-9]{2,9}[vc])", url)
+        match = re.search(r"/(tv|movies)/([0-9]{2,9}[vc])", url)
         if not match:
-            raise ValueError("[-] not valid viki id from url.")
-        self.id = match.group(1)
+            raise ValueError("[-] Invalid URL. Please use series or movie URL.")
+        self.id = match.group(2)
         self.episode = episode
         self.language = language.lower()
         self._type = None
@@ -35,10 +35,10 @@ class VIKI:
             )
         res = self.is_valid(res, "title")
         
-        self._type = res['type']
-        title = res['titles']['en']
-        title_id = res['id'] if self._type == "series" else res['watch_now']['id']
-        total_episodes = res["episodes"]["count"]
+        self._type = res.get("type")
+        title = res.get("titles", {}).get("en")
+        title_id = res.get("id") if self._type == "series" else res.get("watch_now", {}).get("id")
+        total_episodes = res.get("planned_episodes") if res.get("episodes", {}).get("count") == 0 else res.get("episodes", {}).get("count")
 
         print(f"[+] ID: {title_id}")
         print(f"[+] Title: {title}")
@@ -48,11 +48,9 @@ class VIKI:
             return [{
                 '_id': title_id,
                 'title': title,
-                'subtitle': [lang for lang, percent in res['subtitle_completions'].items() if percent > 90]
+                'subtitle': [lang for lang, percent in res.get("subtitle_completions", {}).items() if percent > 90]
                 }]
         else:
-            print(f"[+] Available Episodes: {total_episodes}")
-
             titles = []
             i = 1
             while i < math.ceil(total_episodes / 50) + 1:
@@ -62,7 +60,7 @@ class VIKI:
                         'direction': 'asc',
                         'with_upcoming': 'true',
                         'sort': 'number',
-                        'blocked': 'false',
+                        'blocked': 'true',
                         'only_ids': 'false',
                         'app': self.app,
                         'page': i,
@@ -72,15 +70,15 @@ class VIKI:
                 )
                 vid = self.is_valid(vid, "video list")
                 i += 1
-                for episode in vid["response"]:
-                    if not self.in_range(episode["number"]):
+                for episode in vid.get("response", []):
+                    if not self.in_range(episode.get("number")):
                         continue
 
                     titles.append({
-                        '_id': episode['id'],
+                        '_id': episode.get("id"),
                         'title': title,
-                        'episode': episode["number"],
-                        'subtitle': [lang for lang, percent in episode['subtitle_completions'].items() if percent > 90]
+                        'episode': episode.get("number"),
+                        'subtitle': [lang for lang, percent in episode.get("subtitle_completions", {}).items() if percent > 90]
                     })
             return titles
     
@@ -89,16 +87,16 @@ class VIKI:
         
         for sub in data:
             if self._type == "series":
-                title = f"{sub['title']}.S01E{sub['episode']:02d}".replace(' ', '.')
+                title = f"{sub.get('title')}.S01E{sub.get('episode'):02d}".replace(' ', '.')
             else:
-                title = f"{sub['title']}".replace(' ', '.')
+                title = sub.get('title').replace(' ', '.')
 
-            if self.language not in sub['subtitle'] and not self.language == "all":
+            if self.language not in sub.get("subtitle") and not self.language == "all":
                 raise ValueError(f"'{self.language}' subtitle is not available. These are the available subtitles: {sub['subtitle']}")
-            for lang in sub['subtitle']:
+            for lang in sub.get("subtitle"):
                 if self.language != "all" and lang != self.language:
                     continue
-                self.download_subtitle(sub['_id'], title, lang)
+                self.download_subtitle(sub.get("_id"), title, lang)
 
     def download_subtitle(self, sub_id, title, lang):
         res = requests.get(
