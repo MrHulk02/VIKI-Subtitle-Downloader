@@ -24,6 +24,10 @@ class VIKI:
         self.id = match.group(2)
         self.episode = episode
         self.language = language.lower()
+        if ',' in self.language:
+            self.languages = [l.strip() for l in self.language.split(',')]
+        else:
+            self.languages = [self.language]
         self._type = None
         self.app = "100000a"
     
@@ -91,12 +95,14 @@ class VIKI:
             else:
                 title = sub.get('title').replace(' ', '.')
 
-            if self.language not in sub.get("subtitle") and not self.language == "all":
-                raise ValueError(f"'{self.language}' subtitle is not available. These are the available subtitles: {sub['subtitle']}")
-            for lang in sub.get("subtitle"):
-                if self.language != "all" and lang != self.language:
-                    continue
-                self.download_subtitle(sub.get("_id"), title, lang)
+            if self.languages[0] == "all":
+                for lang in sub.get("subtitle"):
+                    self.download_subtitle(sub.get("_id"), title, lang)
+            else:
+                for lang in self.languages:
+                    if lang not in sub.get("subtitle"):
+                        raise ValueError(f"'{lang}' subtitle is not available. These are the available subtitles: {sub['subtitle']}")
+                    self.download_subtitle(sub.get("_id"), title, lang)
 
     def download_subtitle(self, sub_id, title, lang):
         res = requests.get(
